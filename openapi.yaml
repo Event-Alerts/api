@@ -1,0 +1,945 @@
+openapi: 3.1.1
+info:
+  version: 1.0.0
+  title: Event Alerts
+  summary: Official API for the Event Alerts Discord community for the best
+    Minecraft events
+  description: "The Event Alerts API is the best thing to use if you're looking
+    for Minecraft event-related data\r
+    \r
+    We primarily offer information regarding the [Event Alerts
+    Discord](https://discord.gg/skeppy), which includes websockets for Minecraft
+    events being announced/posted\r
+    \r
+    Feel free to join the Discord and ask us any questions about the API!\r
+    \r
+    ## Important API information\r
+    \r
+    All Discord IDs, timestamps, etc... (anything that uses Java's `long` type)
+    are **strings**. JavaScript, and other languages, like to round these
+    numbers, so we have to send/accept them as strings."
+  contact:
+    name: Event Alerts
+    url: https://eventalerts.gg
+    email: contact@eventalerts.gg
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: https://eventalerts.gg/api/v1
+    description: Event Alerts API
+  - url: https://eventalerts.venox.network/api/v1
+    description: Deprecated API address (use eventalerts.gg)
+tags:
+  - name: events
+    description: All events ever posted in Event Alerts
+  - name: players
+    description: Members of the Event Alerts community
+  - name: servers
+    description: Partnered Event Alerts servers
+paths:
+  /events:
+    get:
+      tags: [events]
+      summary: Get all Events
+      description: Get all events ever posted with filtering parameters
+      operationId: getEvents
+      parameters:
+        - name: page
+          in: query
+          example: 5
+          schema:
+            type: integer
+            format: int32
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          example: 30
+          schema:
+            type: integer
+            format: int32
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: type
+          in: query
+          example: 'PARTNER'
+          schema:
+            type: string
+            enum: [PARTNER, COMMUNITY]
+        - name: channel
+          in: query
+          example: '980956946075115570'
+          schema:
+            type: string
+        - name: custom
+          in: query
+          example: false
+          schema:
+            type: boolean
+        - name: created
+          in: query
+          allowEmptyValue: true
+          example: '1736721370623'
+          schema:
+            type: string
+            description: Epoch millis as string (filter or sort)
+        - name: created_before
+          in: query
+          example: '1736721370623'
+          schema:
+            type: string
+            description: Epoch millis as string
+        - name: created_after
+          in: query
+          example: '1736721370623'
+          schema:
+            type: string
+            description: Epoch millis as string
+        - name: title
+          in: query
+          description: Substring match
+          example: "Minigames"
+          schema:
+            type: string
+        - name: host
+          in: query
+          example: '242385234992037888'
+          schema:
+            type: string
+        - name: description
+          in: query
+          description: Substring match
+          example: "Marketplace"
+          schema:
+            type: string
+        - name: roles
+          in: query
+          description: All must be present
+          explode: false
+          example: ['970434201990070424', '970434305203511359']
+          schema:
+            type: array
+            items:
+              type: string
+        - name: rolesNamed
+          in: query
+          description: All must be present
+          explode: false
+          example: [PARTNER, MONEY]
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [COMMUNITY, PARTNER, MONEY, FUN, HOUSING, CIVILIZATION]
+        - name: server
+          in: query
+          example: '6692b1e493063069af9ad3c1'
+          schema:
+            type: string
+        - name: media_name
+          in: query
+          description: Substring match or media present if no value
+          example: 'png'
+          schema:
+            type: string
+        - name: ip
+          in: query
+          description: Substring match
+          example: 'play.hosting'
+          schema:
+            type: string
+        - name: platform
+          in: query
+          example: 'Java'
+          schema:
+            type: string
+            enum: ['Java', 'Bedrock', 'Java/Bedrock']
+        - name: version
+          in: query
+          example: '1.21'
+          schema:
+            type: string
+        - name: prize
+          in: query
+          description: Substring match
+          example: 'USD'
+          schema:
+            type: string
+        - name: maxPlayers
+          in: query
+          example: 100
+          schema:
+            type: integer
+            format: int32
+        - name: time
+          in: query
+          example: '1736721900000'
+          schema:
+            type: string
+        - name: subscribers
+          in: query
+          description: At least one present
+          explode: false
+          example: ['242385234992037888', '365630764244664320']
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    default: 200
+                  page:
+                    type: integer
+                    format: int32
+                    default: 1
+                  limit:
+                    type: integer
+                    format: int32
+                    default: 50
+                  count:
+                    type: integer
+                    format: int32
+                    example: 1
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/event"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /events/id/{id}:
+    get:
+      tags: [events]
+      summary: Get Event by Object ID
+      description: Get a specific event by it's Object ID
+      operationId: getEventById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          example: '678443dbe2e18235b51b20fd'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/event"
+        "404":
+          $ref: "#/components/responses/404_Invalid-endpoint"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /events/message/{message}:
+    get:
+      tags: [events]
+      summary: Get Event by Discord message ID
+      description: "Get a specific Event by it's Discord message ID"
+      operationId: getEventByMessage
+      parameters:
+        - name: message
+          in: path
+          description: Discord message ID
+          required: true
+          example: '1328130433971519498'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/event"
+        "404":
+          $ref: "#/components/responses/404_Invalid-endpoint"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /events/controlPanel/{controlPanel}:
+    get:
+      tags: [events]
+      summary: "Get Event by Discord message ID of the event's control panel"
+      description: "Get a specific Event by the Discord message ID of it's control panel"
+      operationId: getEventByControlPanel
+      parameters:
+        - name: controlPanel
+          in: path
+          description: Discord message ID
+          required: true
+          example: '1328130437070983198'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/event"
+        "404":
+          $ref: "#/components/responses/404_Invalid-endpoint"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /players:
+    get:
+      tags: [players]
+      summary: Get all Players
+      description: Get all registered Event Alerts players with filtering parameters
+      operationId: getPlayers
+      parameters:
+        - name: page
+          in: query
+          example: 5
+          schema:
+            type: integer
+            format: int32
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          example: 30
+          schema:
+            type: integer
+            format: int32
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: discord_username
+          in: query
+          example: 'srnyx'
+          schema:
+            type: string
+        - name: minecraft_uuid
+          in: query
+          example: 'e907083e-5db6-41fc-9e32-5c4d99a08712'
+          schema:
+            type: string
+        - name: minecraft_username
+          in: query
+          example: 'srnyx'
+          schema:
+            type: string
+        - name: anniversaries
+          in: query
+          description: Must have all
+          explode: false
+          example: [2022, 2023, 2024, 2025]
+          schema:
+            type: array
+            items:
+              type: integer
+              format: int32
+        - name: boosterPasses
+          in: query
+          description: Must have all
+          explode: false
+          example: ['365630764244664320']
+          schema:
+            type: array
+            items:
+              type: string
+        - name: subscription
+          in: query
+          description: Checks if present if no value
+          example: 1
+          schema:
+            type: integer
+            format: int32
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    default: 200
+                  page:
+                    type: integer
+                    format: int32
+                    default: 1
+                  limit:
+                    type: integer
+                    format: int32
+                    default: 50
+                  count:
+                    type: integer
+                    format: int32
+                    example: 1
+                  players:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/player"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /players/id/{id}:
+    get:
+      tags: [players]
+      summary: Get Player by Object ID
+      description: Get a specific Player by their Object ID
+      operationId: getPlayerById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          example: '660ee99164e47b491692f04a'
+          schema:
+            type: string
+            pattern: '^[a-f\d]{24}$'
+      responses:
+        "200":
+          $ref: "#/components/responses/player"
+        "404":
+          $ref: "#/components/responses/429_Rate-limited"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /players/discord/id/{id}:
+    get:
+      tags: [players]
+      summary: Get Player by Discord user ID
+      description: Get a specific Player by their Discord user ID
+      operationId: getPlayerByDiscordId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          example: '242385234992037888'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/player"
+        "404":
+          $ref: "#/components/responses/404_Invalid-endpoint"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /players/minecraft/uuid/{uuid}:
+    get:
+      tags: [players]
+      summary: Get Player by Minecraft UUID
+      description: Get a specific Player by their Minecraft UUID
+      operationId: getPlayerByMinecraftUuid
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          example: 'e907083e-5db6-41fc-9e32-5c4d99a08712'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/player"
+        "404":
+          $ref: "#/components/responses/404_Invalid-endpoint"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /servers:
+    get:
+      tags: [servers]
+      summary: Get all Partner Servers
+      description: Get all current Partner Servers with filtering parameters
+      operationId: getServers
+      parameters:
+        - name: created
+          in: query
+          example: '1720889828797'
+          schema:
+            type: string
+        - name: representatives
+          in: query
+          description: All must be present
+          example: ['273538684526264320', '533985117589471233', '242385234992037888']
+          schema:
+            type: array
+            items:
+              type: string
+        - name: enabled
+          in: query
+          example: '1752472796403'
+          schema:
+            type: string
+        - name: name
+          in: query
+          description: Exact match
+          example: 'srnyx silly events'
+          schema:
+            type: string
+        - name: description
+          in: query
+          description: Exact match
+          example: 'the silliest of events!!!! :))'
+          schema:
+            type: string
+        - name: invite
+          in: query
+          description: Exact match
+          example: 'MDxM9TWERP'
+          schema:
+            type: string
+        - name: tags
+          in: query
+          description: All must be present
+          example: [SKILL, PVP, FUN]
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [CIVILIZATION, FUN, HYPIXEL, LUCK, MINEHUT, MONEY, PVP, SKILL, STREAMS, VIDEOS]
+        - name: color
+          in: query
+          description: RGB integer
+          example: 4360181
+          schema:
+            type: integer
+            format: int32
+        - name: thumbnail
+          in: query
+          description: Exact match
+          example: 'https://media.srnyx.com/r/circle.png'
+          schema:
+            type: string
+        - name: gets
+          in: query
+          description: Keys contain all
+          example: ['365630764244664320', '381890968971902976']
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    default: 200
+                  page:
+                    type: integer
+                    format: int32
+                    default: 1
+                  limit:
+                    type: integer
+                    format: int32
+                    default: 50
+                  count:
+                    type: integer
+                    format: int32
+                    example: 1
+                  servers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/partner_server"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /servers/id/{id}:
+    get:
+      tags: [servers]
+      summary: Get Partner Server by Object ID
+      description: "Get a specific Partner Server by it's Object ID"
+      operationId: getServerById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/partner_server"
+        "404":
+          $ref: "#/components/responses/404_Invalid-endpoint"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /servers/message/{message}:
+    get:
+      tags:
+        - servers
+      summary: Get Partner Server by Discord message ID
+      description: "Get a specific Partner Server by it's Discord message ID"
+      operationId: getServerByMessage
+      parameters:
+        - name: message
+          in: path
+          description: Discord message ID
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/partner_server"
+        "404":
+          $ref: "#/components/responses/404_Invalid-endpoint"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+components:
+  responses:
+    event:
+      description: Successful response of a single Event object
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 200
+              event:
+                $ref: "#/components/schemas/event"
+            required: [code, event]
+    player:
+      description: Successful response of a single Player object
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 200
+              player:
+                $ref: "#/components/schemas/player"
+            required: [code, player]
+    partner_server:
+      description: Successful response of a single Partner Server object
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                example: 200
+              server:
+                $ref: "#/components/schemas/partner_server"
+            required: [code, server]
+    429_Rate-limited:
+      description: Rate-limited, sent too many requests too quickly
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 429
+              message:
+                type: string
+                default: Rate limited
+            required: [code, message]
+    404_Invalid-endpoint:
+      description: Object not found, given invalid path parameters
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 404
+              message:
+                type: string
+                example: "Invalid endpoint type/value: {type}/{value}"
+            required: [code, message]
+    400_Invalid-value:
+      description: Given invalid value, typically for a query parameter
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 400
+              message:
+                type: string
+                example: Invalid color value
+            required: [code, message]
+    500_Server-error:
+      description: 'The server encountered an error when serving data, please contact
+        the API developers!'
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 500
+              message:
+                type: string
+                example: Encountered an exception!
+            required: [code, message]
+  schemas:
+    event:
+      type: object
+      title: Event
+      description: An event posted in Event Alerts
+      properties:
+        id:
+          type: string
+          pattern: '^[a-f\d]{24}$'
+          example: '678443dbe2e18235b51b20fd'
+        type:
+          type: string
+          enum: [PARTNER, COMMUNITY]
+          example: 'PARTNER'
+        channel:
+          type: string
+          description: Channel ID of the event type
+          pattern: '^\d+$'
+          example: '980956946075115570'
+        message:
+          type: string
+          description: Message ID of the event's message
+          pattern: '^\d+$'
+          example: '1328130433971519498'
+        controlPanel:
+          type: string
+          description: Message ID of the event's control panel
+          pattern: '^\d+$'
+          example: '1328130437070983198'
+        custom:
+          type: boolean
+          example: false
+        created:
+          type: string
+          description: When the event was posted
+          pattern: '^\d{13}$'
+          example: '1736721370623'
+        title:
+          type: string
+          example: '$50 Lilypad Minigames!'
+        host:
+          type: string
+          example: '242385234992037888'
+        description:
+          type: string
+          example: "Step back into Summer 2016 with Lilypad's first ever Marketplace creation,\nbringing back the thrill of three beloved minigames from the classic\nXbox Minecraft days — reimagined for the latest version of the game\n\nJoin the VC too: \u003C#1315833779683590174\u003E\n\n**:sunglasses: Buy a server today at \u003Chttps://srnyx.com/lilypad\u003E**\n\n*The Lilypad Marketplace is still in beta, so bugs can be expected*"
+        roles:
+          type: array
+          description: IDs of pinged roles
+          uniqueItems: true
+          items:
+            type: string
+            example: '970434201990070424'
+          example: ['970434201990070424', '970434305203511359']
+        rolesNamed:
+          type: array
+          description: Enum names of pinged roles
+          uniqueItems: true
+          items:
+            type: string
+            enum: [COMMUNITY, PARTNER, MONEY, FUN, HOUSING, CIVILIZATION]
+            example: 'PARTNER'
+          example: [PARTNER, MONEY]
+        server:
+          type: string
+          description: ID of the Partner server hosting
+          example: '6692b1e493063069af9ad3c1'
+        media:
+          type: object
+          description: Information for the event's media file
+          properties:
+            name:
+              type: string
+              example: 'event-image.png'
+        ip:
+          type: string
+          example: 'lilypad.eventalerts.gg'
+        platform:
+          type: string
+          enum: ["Java", "Bedrock", "Java/Bedrock"]
+          example: 'Java'
+        version:
+          type: string
+          example: '1.21+'
+        prize:
+          type: string
+          example: '$50 USD'
+        maxPlayers:
+          type: string
+          pattern: '^\d+$'
+          example: '100'
+        time:
+          type: string
+          description: When the event starts
+          pattern: '^\d{13}$'
+          example: '1736721900000'
+        subscribers:
+          type: array
+          description: Players following the event
+          uniqueItems: true
+          items:
+            type: string
+            example: '242385234992037888'
+          example: ['242385234992037888', '365630764244664320']
+      required: [id, type, channel, custom, created, host]
+    player:
+      type: object
+      title: Player
+      description: A member of the Event Alerts community
+      properties:
+        id:
+          type: string
+          pattern: '^[a-f\d]{24}$'
+          example: '660ef1961ec6c445f26c297a'
+        discord:
+          type: object
+          properties:
+            id:
+              type: string
+              example: '242385234992037888'
+            username:
+              type: string
+              nullable: true
+              example: 'srnyx'
+          required: [id]
+        minecraft:
+          type: object
+          nullable: true
+          properties:
+            uuid:
+              type: string
+              example: 'e907083e-5db6-41fc-9e32-5c4d99a08712'
+            username:
+              type: string
+              nullable: true
+              example: 'srnyx'
+          required: [uuid]
+        anniversaries:
+          type: array
+          uniqueItems: true
+          nullable: true
+          items:
+            type: integer
+            format: int32
+            example: 2025
+          example: [2022, 2023, 2024, 2025]
+        boosterPasses:
+          type: array
+          description: "Users they've been Booster Passes to"
+          uniqueItems: true
+          nullable: true
+          items:
+            type: string
+            pattern: '^\d{18,}$'
+            example: '365630764244664320'
+        subscription:
+          type: integer
+          nullable: true
+          example: 1
+      required: [id, discord]
+    partner_server:
+      type: object
+      title: Partner Server
+      description: A server that's partnered with Event Alerts
+      properties:
+        id:
+          type: string
+          pattern: '^[a-f\d]{24}$'
+          example: '6692b1e493063069af9ad3c1'
+        created:
+          type: string
+          description: When the server was first created/partnered
+          pattern: '^\d{13}$'
+          example: '1720889828797'
+        representatives:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            pattern: '^\d{18,}$'
+            example: '242385234992037888'
+          example: ['273538684526264320', '533985117589471233', '242385234992037888']
+        enabled:
+          type: string
+          nullable: true
+          description: When the server was last enabled
+          example: '1752472796403'
+        name:
+          type: string
+          nullable: true
+          example: 'srnyx silly events'
+        description:
+          type: string
+          nullable: true
+          example: 'the silliest of events!!!! :))'
+        invite:
+          type: string
+          description: "Invite CODE to the server's Discord"
+          nullable: true
+          example: 'MDxM9TWERP'
+        thumbnail:
+          type: string
+          pattern: '^https?://.+'
+          nullable: true
+          example: 'https://media.srnyx.com/r/circle.png'
+        color:
+          type: integer
+          format: int32
+          nullable: true
+          example: 4360181
+        tags:
+          type: array
+          nullable: true
+          items:
+            type: string
+            enum: [CIVILIZATION, FUN, HYPIXEL, LUCK, MINEHUT, MONEY, PVP, SKILL, STREAMS, VIDEOS]
+            example: 'SKILL'
+          example: [SKILL, PVP, FUN]
+        message:
+          type: string
+          pattern: '^\d{18,}$'
+          example: '1394196700280651933'
+        gets:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: integer
+            format: int32
+          example:
+            "365630764244664320": 2
+            "381890968971902976": 5
+      required: [id, created, representatives]
