@@ -73,6 +73,12 @@ paths:
           example: '980956946075115570'
           schema:
             type: string
+        - name: reputation
+          in: query
+          example: '20'
+          schema:
+            type: integer
+            description: value = greater than or equal to, empty = sort most to least
         - name: custom
           in: query
           example: false
@@ -347,6 +353,12 @@ paths:
             type: array
             items:
               type: string
+        - name: reputation
+          in: query
+          example: '20'
+          schema:
+            type: integer
+            description: value = greater than or equal to, empty = sort most to least
         - name: subscription
           in: query
           description: Checks if present if no value
@@ -528,6 +540,12 @@ paths:
             type: array
             items:
               type: string
+        - name: reputation
+          in: query
+          example: '20'
+          schema:
+            type: integer
+            description: value = greater than or equal to, empty = sort most to least
       responses:
         "200":
           description: OK
@@ -740,6 +758,10 @@ components:
           description: Message ID of the event's control panel
           pattern: '^\d+$'
           example: '1328130437070983198'
+        reputation:
+          type: integer
+          nullable: true
+          example: 30
         custom:
           type: boolean
           example: false
@@ -866,6 +888,10 @@ components:
             type: string
             pattern: '^\d{18,}$'
             example: '365630764244664320'
+        reputation:
+          type: integer
+          nullable: true
+          example: 30
         subscription:
           type: integer
           nullable: true
@@ -942,4 +968,8 @@ components:
           example:
             "365630764244664320": 2
             "381890968971902976": 5
+        reputation:
+          type: integer
+          nullable: true
+          example: 30
       required: [id, created, representatives]
