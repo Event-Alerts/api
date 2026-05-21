@@ -33,10 +33,16 @@ servers:
 tags:
   - name: events
     description: All events ever posted in Event Alerts
+  - name: cross_bans
+    description: All cross-bans ever recorded in Event Alerts
   - name: players
     description: Members of the Event Alerts community
   - name: servers
     description: Partnered Event Alerts servers
+  - name: partner_applications
+    description: Partner server applications currently or previously submitted
+  - name: stats
+    description: High-level API statistics
 paths:
   /events:
     get:
@@ -62,6 +68,13 @@ paths:
             default: 50
             minimum: 1
             maximum: 100
+        - name: sort
+          in: query
+          description: Field to sort by, prefix with `-` for descending
+          example: '-created'
+          schema:
+            type: string
+            enum: [type, channel, custom, created, title, host, description, roles, server, media_name, ip, platform, platforms, version, prize, maxPlayers, time, subscribers, effective_date]
         - name: type
           in: query
           example: 'PARTNER'
@@ -73,12 +86,6 @@ paths:
           example: '980956946075115570'
           schema:
             type: string
-        - name: reputation
-          in: query
-          example: '20'
-          schema:
-            type: integer
-            description: value = greater than or equal to, empty = sort most to least
         - name: custom
           in: query
           example: false
@@ -158,10 +165,22 @@ paths:
             type: string
         - name: platform
           in: query
+          description: Legacy single-platform filter
           example: 'Java'
           schema:
             type: string
             enum: ['Java', 'Bedrock', 'Java/Bedrock']
+          deprecated: true
+        - name: platforms
+          in: query
+          description: All must be present
+          explode: false
+          example: [JAVA, BEDROCK]
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [JAVA, BEDROCK]
         - name: version
           in: query
           example: '1.21'
@@ -184,6 +203,16 @@ paths:
           example: '1736721900000'
           schema:
             type: string
+        - name: time_before
+          in: query
+          example: '1736721900000'
+          schema:
+            type: string
+        - name: time_after
+          in: query
+          example: '1736721900000'
+          schema:
+            type: string
         - name: subscribers
           in: query
           description: At least one present
@@ -193,6 +222,11 @@ paths:
             type: array
             items:
               type: string
+        - name: reviews
+          in: query
+          description: Presence-only flag; only returns events that have reviews
+          schema:
+            type: boolean
       responses:
         "200":
           description: OK
@@ -217,6 +251,14 @@ paths:
                     type: integer
                     format: int32
                     example: 1
+                  total:
+                    type: integer
+                    format: int32
+                    example: 1
+                  all:
+                    type: integer
+                    format: int32
+                    example: 1
                   events:
                     type: array
                     items:
@@ -227,6 +269,99 @@ paths:
           $ref: "#/components/responses/429_Rate-limited"
         "500":
           $ref: "#/components/responses/500_Server-error"
+    post:
+      tags: [events]
+      summary: Post an Event
+      description: |
+        Post an event through the API.
+
+        Requires a valid `X-Player-Key`. If `type` is `PARTNER`, a valid `X-Server-Key` is also required.
+        Request bodies must match the current event builder/custom rules enforced by the API handler.
+      operationId: postEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [PARTNER, COMMUNITY]
+                  example: 'PARTNER'
+                custom:
+                  type: boolean
+                  example: false
+                mode:
+                  type: string
+                  enum: [TEXT, IMAGE]
+                  default: TEXT
+                  description: IMAGE is currently not supported through the API
+                  example: 'TEXT'
+                title:
+                  type: string
+                  nullable: true
+                  example: '$50 Lilypad Minigames!'
+                description:
+                  type: string
+                  nullable: true
+                  example: "Step back into Summer 2016 with Lilypad's first ever Marketplace creation"
+                roles:
+                  type: array
+                  nullable: true
+                  description: Ping roles for the event
+                  example: [PARTNER, MONEY]
+                  items:
+                    type: string
+                    enum: [COMMUNITY, PARTNER, MONEY, FUN, HOUSING, CIVILIZATION]
+                ip:
+                  type: string
+                  nullable: true
+                  example: 'lilypad.eventalerts.gg'
+                platform:
+                  type: array
+                  nullable: true
+                  description: Legacy request field used by the API handler
+                  uniqueItems: true
+                  example: [JAVA]
+                  items:
+                    type: string
+                    enum: [JAVA, BEDROCK]
+                version:
+                  type: string
+                  nullable: true
+                  example: '1.21+'
+                prize:
+                  type: string
+                  nullable: true
+                  example: '$50 USD'
+                maxPlayers:
+                  type: integer
+                  format: int32
+                  nullable: true
+                  example: 100
+                time:
+                  type: string
+                  nullable: true
+                  description: Epoch millis as a string
+                  pattern: '^\d{13}$'
+                  example: '1736721900000'
+              required: [type, custom]
+      responses:
+        "200":
+          $ref: "#/components/responses/event"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
+        "403":
+          $ref: "#/components/responses/403_Forbidden"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+        "501":
+          $ref: "#/components/responses/501_Not-supported"
+        "503":
+          $ref: "#/components/responses/503_Cooldown"
   /events/id/{id}:
     get:
       tags: [events]
@@ -243,8 +378,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/event"
-        "404":
-          $ref: "#/components/responses/404_Invalid-endpoint"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
         "429":
           $ref: "#/components/responses/429_Rate-limited"
         "500":
@@ -266,8 +401,6 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/event"
-        "404":
-          $ref: "#/components/responses/404_Invalid-endpoint"
         "429":
           $ref: "#/components/responses/429_Rate-limited"
         "500":
@@ -289,8 +422,184 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/event"
-        "404":
-          $ref: "#/components/responses/404_Invalid-endpoint"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /cross_bans:
+    get:
+      tags: [cross_bans]
+      summary: Get all Cross Bans
+      description: Get all cross bans ever recorded with filtering parameters
+      operationId: getCrossBans
+      parameters:
+        - name: page
+          in: query
+          example: 5
+          schema:
+            type: integer
+            format: int32
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          example: 30
+          schema:
+            type: integer
+            format: int32
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: sort
+          in: query
+          description: Field to sort by, prefix with `-` for descending
+          example: '-created'
+          schema:
+            type: string
+            enum: [id, discord_id, minecraft_uuid, reason, expiration, created]
+        - name: id
+          in: query
+          description: All must be present
+          explode: false
+          example: ['678443dbe2e18235b51b20fd']
+          schema:
+            type: array
+            items:
+              type: string
+        - name: discord_id
+          in: query
+          description: All must be present
+          explode: false
+          example: ['242385234992037888']
+          schema:
+            type: array
+            items:
+              type: string
+        - name: minecraft_uuid
+          in: query
+          description: All must be present
+          explode: false
+          example: ['e907083e-5db6-41fc-9e32-5c4d99a08712']
+          schema:
+            type: array
+            items:
+              type: string
+        - name: reason
+          in: query
+          description: Substring match
+          example: "spam"
+          schema:
+            type: string
+        - name: expiration
+          in: query
+          example: '1736721900000'
+          schema:
+            type: string
+        - name: created
+          in: query
+          example: '1736721900000'
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    default: 200
+                  page:
+                    type: integer
+                    format: int32
+                    default: 1
+                  limit:
+                    type: integer
+                    format: int32
+                    default: 50
+                  count:
+                    type: integer
+                    format: int32
+                    example: 1
+                  total:
+                    type: integer
+                    format: int32
+                    example: 1
+                  all:
+                    type: integer
+                    format: int32
+                    example: 1
+                  cross_bans:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/cross_ban"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /cross_bans/id/{id}:
+    get:
+      tags: [cross_bans]
+      summary: Get Cross Ban by Object ID
+      description: Get a specific cross ban by its Object ID
+      operationId: getCrossBanById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          example: '678443dbe2e18235b51b20fd'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/cross_ban"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /cross_bans/discord_id/{discord_id}:
+    get:
+      tags: [cross_bans]
+      summary: Get Cross Ban by Discord user ID
+      description: Get a specific cross ban by its Discord user ID
+      operationId: getCrossBanByDiscordId
+      parameters:
+        - name: discord_id
+          in: path
+          required: true
+          example: '242385234992037888'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/cross_ban"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /cross_bans/minecraft_uuid/{minecraft_uuid}:
+    get:
+      tags: [cross_bans]
+      summary: Get Cross Ban by Minecraft UUID
+      description: Get a specific cross ban by its Minecraft UUID
+      operationId: getCrossBanByMinecraftUuid
+      parameters:
+        - name: minecraft_uuid
+          in: path
+          required: true
+          example: 'e907083e-5db6-41fc-9e32-5c4d99a08712'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/cross_ban"
         "429":
           $ref: "#/components/responses/429_Rate-limited"
         "500":
@@ -319,6 +628,13 @@ paths:
             default: 50
             minimum: 1
             maximum: 100
+        - name: sort
+          in: query
+          description: Field to sort by, prefix with `-` for descending
+          example: '-rating'
+          schema:
+            type: string
+            enum: [id, discord_id, discord_username, minecraft_uuid, minecraft_username, anniversaries, boosterPasses, subscription, subscription_tier, linkMethod, rating]
         - name: discord_username
           in: query
           example: 'srnyx'
@@ -353,19 +669,21 @@ paths:
             type: array
             items:
               type: string
-        - name: reputation
-          in: query
-          example: '20'
-          schema:
-            type: integer
-            description: value = greater than or equal to, empty = sort most to least
-        - name: subscription
+        - name: subscription_tier
           in: query
           description: Checks if present if no value
-          example: 1
+          example: 'BEE'
           schema:
-            type: integer
-            format: int32
+            type: string
+            enum: [BEE, WASP, HORNET]
+        - name: subscription
+          in: query
+          description: Legacy alias of subscription_tier
+          example: 'BEE'
+          deprecated: true
+          schema:
+            type: string
+            enum: [BEE, WASP, HORNET]
       responses:
         "200":
           description: OK
@@ -387,6 +705,14 @@ paths:
                     format: int32
                     default: 50
                   count:
+                    type: integer
+                    format: int32
+                    example: 1
+                  total:
+                    type: integer
+                    format: int32
+                    example: 1
+                  all:
                     type: integer
                     format: int32
                     example: 1
@@ -417,8 +743,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/player"
-        "404":
-          $ref: "#/components/responses/429_Rate-limited"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
         "429":
           $ref: "#/components/responses/429_Rate-limited"
         "500":
@@ -439,8 +765,6 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/player"
-        "404":
-          $ref: "#/components/responses/404_Invalid-endpoint"
         "429":
           $ref: "#/components/responses/429_Rate-limited"
         "500":
@@ -461,8 +785,35 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/player"
-        "404":
-          $ref: "#/components/responses/404_Invalid-endpoint"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /players/regenerate-key:
+    post:
+      tags: [players]
+      summary: Regenerate Player API key
+      description: Regenerate the authenticated player's API key
+      operationId: postPlayerRegenerateKey
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    default: 200
+                  newKey:
+                    type: string
+                required: [code, newKey]
+        "401":
+          $ref: "#/components/responses/401_Unauthorized"
+        "403":
+          $ref: "#/components/responses/403_Blacklisted"
         "429":
           $ref: "#/components/responses/429_Rate-limited"
         "500":
@@ -474,6 +825,30 @@ paths:
       description: Get all current Partner Servers with filtering parameters
       operationId: getServers
       parameters:
+        - name: page
+          in: query
+          example: 5
+          schema:
+            type: integer
+            format: int32
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          example: 30
+          schema:
+            type: integer
+            format: int32
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: sort
+          in: query
+          description: Field to sort by, prefix with `-` for descending
+          example: '-created'
+          schema:
+            type: string
+            enum: [id, server_id, created, representatives, enabled, name, description, invite, tags, color, thumbnail, message, gets]
         - name: created
           in: query
           example: '1720889828797'
@@ -540,12 +915,6 @@ paths:
             type: array
             items:
               type: string
-        - name: reputation
-          in: query
-          example: '20'
-          schema:
-            type: integer
-            description: value = greater than or equal to, empty = sort most to least
       responses:
         "200":
           description: OK
@@ -567,6 +936,14 @@ paths:
                     format: int32
                     default: 50
                   count:
+                    type: integer
+                    format: int32
+                    example: 1
+                  total:
+                    type: integer
+                    format: int32
+                    example: 1
+                  all:
                     type: integer
                     format: int32
                     example: 1
@@ -595,8 +972,8 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/partner_server"
-        "404":
-          $ref: "#/components/responses/404_Invalid-endpoint"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
         "429":
           $ref: "#/components/responses/429_Rate-limited"
         "500":
@@ -618,8 +995,224 @@ paths:
       responses:
         "200":
           $ref: "#/components/responses/partner_server"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /servers/regenerate-key:
+    post:
+      tags: [servers]
+      summary: Regenerate Partner Server API key
+      description: Regenerate the authenticated Partner Server API key
+      operationId: postServerRegenerateKey
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    default: 200
+                  newKey:
+                    type: string
+                required: [code, newKey]
+        "401":
+          $ref: "#/components/responses/401_Unauthorized"
+        "403":
+          $ref: "#/components/responses/403_Blacklisted"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /partner_applications:
+    get:
+      tags: [partner_applications]
+      summary: Get all Partner Applications
+      description: Get all partner server applications with filtering parameters. Requires either Authorization or X-Player-Key.
+      operationId: getPartnerApplications
+      parameters:
+        - name: page
+          in: query
+          example: 5
+          schema:
+            type: integer
+            format: int32
+            default: 1
+            minimum: 1
+        - name: limit
+          in: query
+          example: 30
+          schema:
+            type: integer
+            format: int32
+            default: 50
+            minimum: 1
+            maximum: 100
+        - name: sort
+          in: query
+          description: Field to sort by, prefix with `-` for descending
+          example: '-created'
+          schema:
+            type: string
+            enum: [id, applicant, channel, created, message, approvedBy, representatives, name, description, invite, tags, color, thumbnail]
+        - name: created
+          in: query
+          example: '1720889828797'
+          schema:
+            type: string
+        - name: approvedBy
+          in: query
+          example: 'MOD'
+          schema:
+            type: string
+            enum: [MOD, ADMIN]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: integer
+                    format: int32
+                    default: 200
+                  page:
+                    type: integer
+                    format: int32
+                    default: 1
+                  limit:
+                    type: integer
+                    format: int32
+                    default: 50
+                  count:
+                    type: integer
+                    format: int32
+                    example: 1
+                  total:
+                    type: integer
+                    format: int32
+                    example: 1
+                  partner_applications:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/partner_application"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
+        "401":
+          $ref: "#/components/responses/401_Unauthorized"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /partner_applications/id/{id}:
+    get:
+      tags: [partner_applications]
+      summary: Get Partner Application by Object ID
+      description: Get a specific partner application by its Object ID
+      operationId: getPartnerApplicationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          example: '970411885293895801'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/partner_application"
+        "400":
+          $ref: "#/components/responses/400_Invalid-value"
+        "403":
+          $ref: "#/components/responses/403_Forbidden"
         "404":
-          $ref: "#/components/responses/404_Invalid-endpoint"
+          $ref: "#/components/responses/404_Not-found"
+        "401":
+          $ref: "#/components/responses/401_Unauthorized"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /partner_applications/applicant/{applicant}:
+    get:
+      tags: [partner_applications]
+      summary: Get Partner Application by applicant ID
+      description: Get a specific partner application by its applicant Discord ID
+      operationId: getPartnerApplicationByApplicant
+      parameters:
+        - name: applicant
+          in: path
+          required: true
+          example: '242385234992037888'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/partner_application"
+        "401":
+          $ref: "#/components/responses/401_Unauthorized"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /partner_applications/channel/{channel}:
+    get:
+      tags: [partner_applications]
+      summary: Get Partner Application by channel ID
+      description: Get a specific partner application by its application channel ID
+      operationId: getPartnerApplicationByChannel
+      parameters:
+        - name: channel
+          in: path
+          required: true
+          example: '1328130437070983198'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/partner_application"
+        "401":
+          $ref: "#/components/responses/401_Unauthorized"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /partner_applications/message/{message}:
+    get:
+      tags: [partner_applications]
+      summary: Get Partner Application by message ID
+      description: Get a specific partner application by its application message ID
+      operationId: getPartnerApplicationByMessage
+      parameters:
+        - name: message
+          in: path
+          required: true
+          example: '1328130433971519498'
+          schema:
+            type: string
+      responses:
+        "200":
+          $ref: "#/components/responses/partner_application"
+        "401":
+          $ref: "#/components/responses/401_Unauthorized"
+        "429":
+          $ref: "#/components/responses/429_Rate-limited"
+        "500":
+          $ref: "#/components/responses/500_Server-error"
+  /stats:
+    get:
+      tags: [stats]
+      summary: Get API statistics
+      description: Get high-level API statistics
+      operationId: getStats
+      responses:
+        "200":
+          $ref: "#/components/responses/stats"
         "429":
           $ref: "#/components/responses/429_Rate-limited"
         "500":
@@ -638,6 +1231,7 @@ components:
                 format: int32
                 default: 200
               event:
+                nullable: true
                 $ref: "#/components/schemas/event"
             required: [code, event]
     player:
@@ -652,6 +1246,7 @@ components:
                 format: int32
                 default: 200
               player:
+                nullable: true
                 $ref: "#/components/schemas/player"
             required: [code, player]
     partner_server:
@@ -666,8 +1261,143 @@ components:
                 format: int32
                 example: 200
               server:
+                nullable: true
                 $ref: "#/components/schemas/partner_server"
             required: [code, server]
+    cross_ban:
+      description: Successful response of a single Cross Ban object
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 200
+              cross_ban:
+                nullable: true
+                $ref: "#/components/schemas/cross_ban"
+            required: [code, cross_ban]
+    partner_application:
+      description: Successful response of a single Partner Application object
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 200
+              partner_application:
+                nullable: true
+                $ref: "#/components/schemas/partner_application"
+            required: [code, partner_application]
+    stats:
+      description: Successful response of API statistics
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 200
+              stats:
+                $ref: "#/components/schemas/stats"
+            required: [code, stats]
+    401_Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 401
+              message:
+                type: string
+                example: Missing or invalid Authorization header
+            required: [code, message]
+    403_Forbidden:
+      description: The authenticated user does not have permission to access the resource. Some endpoints may include a `blacklist` object when the denial is caused by an API blacklist.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 403
+              message:
+                type: string
+                example: You do not have permission to access the resource
+              blacklist:
+                nullable: true
+                $ref: "#/components/schemas/blacklist_entry"
+            required: [code, message]
+    403_Blacklisted:
+      description: The authenticated user is blacklisted from using the API
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 403
+              message:
+                type: string
+                example: You are blacklisted from using the API
+              blacklist:
+                $ref: "#/components/schemas/blacklist_entry"
+            required: [code, message, blacklist]
+    501_Not-supported:
+      description: The requested feature is not yet supported
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 501
+              message:
+                type: string
+                example: IMAGE mode is not yet supported through the API
+            required: [code, message]
+    503_Cooldown:
+      description: The host or server is on cooldown and cannot post the event
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 503
+              message:
+                type: string
+                example: COMMUNITY events are on cooldown
+              cooldown:
+                type: object
+                properties:
+                  ends:
+                    type: string
+                    example: '1736721900000'
+                  remaining:
+                    type: string
+                    example: '60000'
+                required: [ends, remaining]
+            required: [code, message, cooldown]
     429_Rate-limited:
       description: Rate-limited, sent too many requests too quickly
       content:
@@ -698,8 +1428,23 @@ components:
                 type: string
                 example: "Invalid endpoint type/value: {type}/{value}"
             required: [code, message]
+    404_Not-found:
+      description: The requested object could not be found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code:
+                type: integer
+                format: int32
+                default: 404
+              message:
+                type: string
+                example: Partner application not found
+            required: [code, message]
     400_Invalid-value:
-      description: Given invalid value, typically for a query parameter
+      description: Given invalid value, typically for a query parameter or path segment
       content:
         application/json:
           schema:
@@ -758,10 +1503,6 @@ components:
           description: Message ID of the event's control panel
           pattern: '^\d+$'
           example: '1328130437070983198'
-        reputation:
-          type: integer
-          nullable: true
-          example: 30
         custom:
           type: boolean
           example: false
@@ -807,12 +1548,27 @@ components:
             name:
               type: string
               example: 'event-image.png'
+        source:
+          type: string
+          enum: [DISCORD, API]
+          example: 'DISCORD'
         ip:
           type: string
           example: 'lilypad.eventalerts.gg'
+        platforms:
+          type: array
+          nullable: true
+          uniqueItems: true
+          description: Available platforms as enum values
+          items:
+            type: string
+            enum: [JAVA, BEDROCK]
+          example: [JAVA]
         platform:
           type: string
+          nullable: true
           enum: ["Java", "Bedrock", "Java/Bedrock"]
+          deprecated: true
           example: 'Java'
         version:
           type: string
@@ -837,7 +1593,34 @@ components:
             type: string
             example: '242385234992037888'
           example: ['242385234992037888', '365630764244664320']
-      required: [id, type, channel, custom, created, host]
+        reviews:
+          type: array
+          nullable: true
+          description: Event reviews, visible to the host or authenticated bearer requests
+          items:
+            type: object
+            properties:
+              reviewer:
+                type: string
+                description: Visible to bearer-authenticated requests
+                example: '242385234992037888'
+              timestamp:
+                type: string
+                pattern: '^\d{13}$'
+                example: '1736721900000'
+              comments:
+                type: string
+                nullable: true
+                example: 'Great event!'
+              categories:
+                type: object
+                description: Visible to bearer-authenticated requests
+                additionalProperties:
+                  type: integer
+                  format: int32
+                example:
+                  attendance: 5
+      required: [id, type, channel, custom, created, host, source]
     player:
       type: object
       title: Player
@@ -857,6 +1640,13 @@ components:
               type: string
               nullable: true
               example: 'srnyx'
+            roles:
+              type: array
+              uniqueItems: true
+              items:
+                type: string
+                enum: [ADMIN, STAFF, CREATOR, CONTRIBUTOR]
+              example: [ADMIN, STAFF]
           required: [id]
         minecraft:
           type: object
@@ -888,14 +1678,28 @@ components:
             type: string
             pattern: '^\d{18,}$'
             example: '365630764244664320'
-        reputation:
-          type: integer
+        defaultPreset:
+          type: string
           nullable: true
-          example: 30
+          pattern: '^[a-f\d]{24}$'
+          example: '660ef1961ec6c445f26c297a'
+        linkMethod:
+          type: string
+          nullable: true
+          description: Only returned when authenticated as this player
+          enum: [LEGACY, MICROSOFT_OAUTH, DISCORD_OAUTH, CODE_FROM_DISCORD, CODE_FROM_MINECRAFT, CROSS_BAN]
         subscription:
-          type: integer
+          type: object
           nullable: true
-          example: 1
+          properties:
+            tier:
+              type: string
+              enum: [BEE, WASP, HORNET]
+          required: [tier]
+        rating:
+          type: number
+          format: double
+          example: 4.5
       required: [id, discord]
     partner_server:
       type: object
@@ -906,6 +1710,12 @@ components:
           type: string
           pattern: '^[a-f\d]{24}$'
           example: '6692b1e493063069af9ad3c1'
+        serverId:
+          type: string
+          nullable: true
+          pattern: '^\d+$'
+          description: Linked Discord server ID
+          example: '970411885293895801'
         created:
           type: string
           description: When the server was first created/partnered
@@ -957,6 +1767,7 @@ components:
           example: [SKILL, PVP, FUN]
         message:
           type: string
+          nullable: true
           pattern: '^\d{18,}$'
           example: '1394196700280651933'
         gets:
@@ -968,8 +1779,182 @@ components:
           example:
             "365630764244664320": 2
             "381890968971902976": 5
-        reputation:
-          type: integer
+        disableData:
+          type: object
           nullable: true
-          example: 30
+          description: Only visible when authenticated as the partner server
+          properties:
+            reason:
+              type: string
+              example: 'Server is disabled'
+            time:
+              type: string
+              pattern: '^\d{13}$'
+              example: '1752472796403'
+        apiKey:
+          type: string
+          nullable: true
+          description: Only visible to the bearer-authenticated server owner
       required: [id, created, representatives]
+    cross_ban:
+      type: object
+      title: Cross Ban
+      description: A cross-ban issued across Event Alerts
+      properties:
+        id:
+          type: string
+          pattern: '^[a-f\d]{24}$'
+          example: '678443dbe2e18235b51b20fd'
+        discordId:
+          type: string
+          nullable: true
+          pattern: '^\d+$'
+          example: '242385234992037888'
+        minecraftUuid:
+          type: string
+          nullable: true
+          example: 'e907083e-5db6-41fc-9e32-5c4d99a08712'
+        reason:
+          type: string
+          example: 'Spamming events across multiple servers'
+        expiration:
+          type: string
+          nullable: true
+          pattern: '^\d{13}$'
+          example: '1736721900000'
+        created:
+          type: string
+          pattern: '^\d{13}$'
+          example: '1736721370623'
+      required: [id, reason, created]
+    partner_application:
+      type: object
+      title: Partner Application
+      description: A partner server application submitted to Event Alerts
+      properties:
+        id:
+          type: string
+          pattern: '^\d{18,}$'
+          example: '970411885293895801'
+        applicant:
+          type: string
+          pattern: '^\d{18,}$'
+          example: '242385234992037888'
+        channel:
+          type: string
+          nullable: true
+          pattern: '^\d{18,}$'
+          example: '1328130437070983198'
+        created:
+          type: string
+          pattern: '^\d{13}$'
+          example: '1736721370623'
+        message:
+          type: string
+          pattern: '^\d{18,}$'
+          example: '1328130433971519498'
+        approvedBy:
+          type: string
+          nullable: true
+          enum: [MOD, ADMIN]
+        data:
+          type: object
+          properties:
+            representatives:
+              type: array
+              uniqueItems: true
+              items:
+                type: string
+                pattern: '^\d{18,}$'
+              example: ['242385234992037888']
+            name:
+              type: string
+              nullable: true
+              example: 'srnyx silly events'
+            description:
+              type: string
+              nullable: true
+              example: 'the silliest of events!!!! :))'
+            invite:
+              type: string
+              nullable: true
+              example: 'MDxM9TWERP'
+            tags:
+              type: array
+              nullable: true
+              items:
+                type: string
+                enum: [CIVILIZATION, FUN, HYPIXEL, LUCK, MINEHUT, MONEY, PVP, SKILL, STREAMS, VIDEOS]
+              example: [SKILL, PVP, FUN]
+            color:
+              type: integer
+              nullable: true
+              format: int32
+              example: 4360181
+            thumbnail:
+              type: string
+              nullable: true
+              pattern: '^https?://.+'
+              example: 'https://media.srnyx.com/r/circle.png'
+          required: [representatives]
+      required: [id, applicant, created, message, data]
+    blacklist_entry:
+      type: object
+      title: Blacklist Entry
+      description: A blacklist entry used for API blacklist responses
+      properties:
+        id:
+          type: string
+          pattern: '^[a-f\d]{24}$'
+          example: '678443dbe2e18235b51b20fd'
+        category:
+          type: string
+          enum: [PARTNER, STAFF, HOSTING, REVIEWING, API]
+          example: 'API'
+        user:
+          type: integer
+          format: int64
+          example: 242385234992037888
+        reason:
+          type: string
+          nullable: true
+          example: 'Abuse of the API'
+        timestamp:
+          type: integer
+          format: int64
+          example: 1736721370623
+      required: [id, category, user, timestamp]
+    stats:
+      type: object
+      title: Stats
+      description: High-level API statistics
+      properties:
+        totalCrossBans:
+          type: integer
+          format: int32
+          example: 12
+        totalPlayers:
+          type: integer
+          format: int32
+          example: 345
+        totalServers:
+          type: integer
+          format: int32
+          example: 78
+        events:
+          type: object
+          properties:
+            total:
+              type: integer
+              format: int32
+              example: 120
+            partner:
+              type: integer
+              format: int32
+              example: 88
+            community:
+              type: integer
+              format: int32
+              example: 32
+          required: [total, partner, community]
+      required: [totalCrossBans, totalPlayers, totalServers, events]
