@@ -684,6 +684,18 @@ paths:
           schema:
             type: string
             enum: [BEE, WASP, HORNET]
+        - name: linkMethod
+          in: query
+          example: 'DISCORD_OAUTH'
+          schema:
+            type: string
+            enum: [LEGACY, MICROSOFT_OAUTH, DISCORD_OAUTH, CODE_FROM_DISCORD, CODE_FROM_MINECRAFT, CROSS_BAN]
+        - name: rating
+          in: query
+          description: Greater than or equal to
+          example: 2.7
+          schema:
+            type: double
       responses:
         "200":
           description: OK
