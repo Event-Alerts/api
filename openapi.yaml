@@ -805,8 +805,19 @@ paths:
     post:
       tags: [players]
       summary: Regenerate Player API key
-      description: Regenerate the authenticated player's API key
+      description: Regenerate a player's API key using the admin bearer token
       operationId: postPlayerRegenerateKey
+      requestBody:
+        required: false
+        description: Optional fallback when X-Player-Key is not available
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                player:
+                  type: string
+                  description: Player object id
       responses:
         "200":
           description: OK
@@ -1017,6 +1028,17 @@ paths:
       summary: Regenerate Partner Server API key
       description: Regenerate the authenticated Partner Server API key
       operationId: postServerRegenerateKey
+      requestBody:
+        required: false
+        description: Optional fallback when X-Server-Key is not available
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                partner_server:
+                  type: string
+                  description: Partner server object id
       responses:
         "200":
           description: OK
