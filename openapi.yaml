@@ -74,7 +74,7 @@ paths:
           example: '-created'
           schema:
             type: string
-            enum: [type, channel, custom, created, title, host, description, roles, server, media_name, ip, platform, platforms, version, prize, maxPlayers, time, subscribers, effective_date]
+            enum: [type, channel, custom, created, title, host, description, roles, server, media_name, ip, platform, platforms, version, prize, maxPlayers, time, subscribers, effective_date, -type, -channel, -custom, -created, -title, -host, -description, -roles, -server, -media_name, -ip, -platform, -platforms, -version, -prize, -maxPlayers, -time, -subscribers, -effective_date]
         - name: type
           in: query
           example: 'PARTNER'
@@ -456,7 +456,7 @@ paths:
           example: '-created'
           schema:
             type: string
-            enum: [id, discord_id, minecraft_uuid, reason, expiration, created]
+            enum: [id, discord_id, minecraft_uuid, reason, expiration, created, -id, -discord_id, -minecraft_uuid, -reason, -expiration, -created]
         - name: id
           in: query
           description: All must be present
@@ -634,7 +634,7 @@ paths:
           example: '-rating'
           schema:
             type: string
-            enum: [id, discord_id, discord_username, minecraft_uuid, minecraft_username, anniversaries, boosterPasses, subscription, subscription_tier, linkMethod, rating]
+            enum: [id, discord_id, discord_username, minecraft_uuid, minecraft_username, anniversaries, boosterPasses, subscription, subscription_tier, linkMethod, rating, -id, -discord_id, -discord_username, -minecraft_uuid, -minecraft_username, -anniversaries, -boosterPasses, -subscription, -subscription_tier, -linkMethod, -rating]
         - name: discord_username
           in: query
           example: 'srnyx'
@@ -695,7 +695,7 @@ paths:
           description: Greater than or equal to
           example: 2.7
           schema:
-            type: double
+            type: number
       responses:
         "200":
           description: OK
@@ -871,7 +871,7 @@ paths:
           example: '-created'
           schema:
             type: string
-            enum: [id, server_id, created, representatives, enabled, name, description, invite, tags, color, thumbnail, message, gets]
+            enum: [id, server_id, created, representatives, enabled, name, description, invite, tags, color, thumbnail, message, gets, -id, -server_id, -created, -representatives, -enabled, -name, -description, -invite, -tags, -color, -thumbnail, -message, -gets]
         - name: created
           in: query
           example: '1720889828797'
@@ -1092,7 +1092,7 @@ paths:
           example: '-created'
           schema:
             type: string
-            enum: [id, applicant, channel, created, message, approvedBy, representatives, name, description, invite, tags, color, thumbnail]
+            enum: [id, applicant, channel, created, message, approvedBy, representatives, name, description, invite, tags, color, thumbnail, -id, -applicant, -channel, -created, -message, -approvedBy, -representatives, -name, -description, -invite, -tags, -color, -thumbnail]
         - name: created
           in: query
           example: '1720889828797'
@@ -1579,6 +1579,9 @@ components:
           type: object
           description: Information for the event's media file
           properties:
+            url:
+              type: string
+              example: 'https://eventalerts.gg/api/events/6a0c7b253a21ff4c32b83413/media/event-image.png'
             name:
               type: string
               example: 'event-image.png'
